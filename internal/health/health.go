@@ -15,8 +15,6 @@ const (
 	StatusWarning = "warning"
 	StatusError   = "error"
 
-	minFreeDiskBytes = 1_073_741_824 // 1 GB
-
 	green  = "\033[32m"
 	yellow = "\033[33m"
 	red    = "\033[31m"

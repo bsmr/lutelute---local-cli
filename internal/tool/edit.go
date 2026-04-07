@@ -86,10 +86,10 @@ func makeDiffOutput(filePath, oldText, newText string, occurrences int) string {
 	fmt.Fprintf(&sb, "--- %s\n", filePath)
 	fmt.Fprintf(&sb, "+++ %s\n", filePath)
 	fmt.Fprintf(&sb, "@@ replaced %d occurrence(s) @@\n", occurrences)
-	for _, line := range strings.Split(oldText, "\n") {
+	for line := range strings.SplitSeq(oldText, "\n") {
 		fmt.Fprintf(&sb, "-%s\n", line)
 	}
-	for _, line := range strings.Split(newText, "\n") {
+	for line := range strings.SplitSeq(newText, "\n") {
 		fmt.Fprintf(&sb, "+%s\n", line)
 	}
 	return sb.String()
