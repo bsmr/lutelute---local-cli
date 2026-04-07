@@ -53,6 +53,10 @@ func (t *EditTool) Execute(args map[string]any) string {
 	newText, _ := args["new_text"].(string)
 	replaceAll, _ := args["replace_all"].(bool)
 
+	if !isPathSafe(filePath) {
+		return fmt.Sprintf("Error: edit to %s blocked by security policy.", filePath)
+	}
+
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Sprintf("Error: %v", err)

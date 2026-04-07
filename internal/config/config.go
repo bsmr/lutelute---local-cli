@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"go.muehmer.eu/lai/internal/security"
 )
 
 // Defaults for all configuration keys.
@@ -112,6 +114,11 @@ func New(cli *CLIArgs) *Config {
 	// Layer 3: CLI arguments (highest priority)
 	if cli != nil {
 		applyCLIArgs(cfg, cli)
+	}
+
+	// Validate model name
+	if cfg.Model != "" && !security.ValidateModelName(cfg.Model) {
+		cfg.Model = DefaultModel
 	}
 
 	// Expand paths

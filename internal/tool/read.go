@@ -87,6 +87,8 @@ func (t *ReadTool) Execute(args map[string]any) string {
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 256*1024), 1024*1024)
 
+	const maxReadBytes = 5 * 1024 * 1024 // 5 MB output limit
+
 	var sb strings.Builder
 	lineNum := 0
 	count := 0
@@ -101,6 +103,10 @@ func (t *ReadTool) Execute(args map[string]any) string {
 		}
 		fmt.Fprintf(&sb, "%6d\t%s\n", lineNum, scanner.Text())
 		count++
+		if sb.Len() > maxReadBytes {
+			fmt.Fprintf(&sb, "\n... [output truncated at 5 MB]")
+			break
+		}
 	}
 
 	if err := scanner.Err(); err != nil {

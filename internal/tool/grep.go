@@ -83,18 +83,27 @@ func (t *GrepTool) Execute(args map[string]any) string {
 		files = collectFiles(base, include)
 	}
 
+	const maxGrepBytes = 10 * 1024 * 1024 // 10 MB output limit
+
 	var sb strings.Builder
 	count := 0
+	truncated := false
 
 	for _, filePath := range files {
-		if count >= maxGrepResults {
-			fmt.Fprintf(&sb, "\n... [truncated at %d matches]", maxGrepResults)
+		if count >= maxGrepResults || truncated {
 			break
 		}
 
 		matches := searchFile(filePath, re)
 		for _, m := range matches {
 			if count >= maxGrepResults {
+				fmt.Fprintf(&sb, "\n... [truncated at %d matches]", maxGrepResults)
+				truncated = true
+				break
+			}
+			if sb.Len()+len(m) > maxGrepBytes {
+				fmt.Fprintf(&sb, "\n... [output truncated at 10 MB]")
+				truncated = true
 				break
 			}
 			sb.WriteString(m)

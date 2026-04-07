@@ -262,7 +262,7 @@ func (c *Client) doJSON(method, path string, data any) (map[string]any, error) {
 		return nil, &provider.RequestError{
 			Provider:   "ollama",
 			StatusCode: resp.StatusCode,
-			Body:       string(body),
+			Body:       truncateBody(string(body)),
 		}
 	}
 
@@ -304,7 +304,7 @@ func (c *Client) doNoContent(method, path string, data any) error {
 		return &provider.RequestError{
 			Provider:   "ollama",
 			StatusCode: resp.StatusCode,
-			Body:       string(body),
+			Body:       truncateBody(string(body)),
 		}
 	}
 	return nil
@@ -334,11 +334,20 @@ func (c *Client) doStreamRequest(path string, data any) (*http.Response, error) 
 		return nil, &provider.RequestError{
 			Provider:   "ollama",
 			StatusCode: resp.StatusCode,
-			Body:       string(body),
+			Body:       truncateBody(string(body)),
 		}
 	}
 
 	return resp, nil
+}
+
+const maxErrorBodyLen = 500
+
+func truncateBody(s string) string {
+	if len(s) > maxErrorBodyLen {
+		return s[:maxErrorBodyLen] + "... [truncated]"
+	}
+	return s
 }
 
 // Provider wraps Client to implement the provider.Provider interface.

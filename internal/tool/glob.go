@@ -41,6 +41,10 @@ func (t *GlobTool) Execute(args map[string]any) string {
 		return "Error: pattern is required."
 	}
 
+	if strings.Contains(pattern, "../") || strings.Contains(pattern, "..\\") {
+		return "Error: pattern must not contain directory traversal sequences."
+	}
+
 	base := "."
 	if v, ok := args["path"].(string); ok && v != "" {
 		base = v
@@ -95,12 +99,20 @@ func (t *GlobTool) Execute(args map[string]any) string {
 	return strings.TrimRight(sb.String(), "\n")
 }
 
-// walkGlob implements recursive glob matching for ** patterns.
+const maxWalkDepth = 50
+
+// walkGlob implements recursive glob matching for ** patterns with depth limit.
 func walkGlob(base, pattern string) []string {
 	var matches []string
+	baseDepth := strings.Count(filepath.Clean(base), string(filepath.Separator))
+
 	_ = filepath.Walk(base, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // skip errors
+		}
+		depth := strings.Count(filepath.Clean(path), string(filepath.Separator)) - baseDepth
+		if depth > maxWalkDepth {
+			return filepath.SkipDir
 		}
 		if info.IsDir() {
 			return nil

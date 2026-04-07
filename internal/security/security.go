@@ -45,10 +45,14 @@ var modelNameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._:/-]*$`)
 
 const maxModelNameLength = 256
 
+var whitespaceRE = regexp.MustCompile(`\s+`)
+
 // IsCommandDangerous checks if a shell command matches any dangerous pattern.
+// Normalizes whitespace before matching to prevent evasion via extra spaces.
 func IsCommandDangerous(cmd string) bool {
+	normalized := whitespaceRE.ReplaceAllString(strings.TrimSpace(cmd), " ")
 	for _, pat := range dangerousPatterns {
-		if pat.MatchString(cmd) {
+		if pat.MatchString(cmd) || pat.MatchString(normalized) {
 			return true
 		}
 	}

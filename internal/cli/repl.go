@@ -12,6 +12,7 @@ import (
 	"go.muehmer.eu/lai/internal/health"
 	"go.muehmer.eu/lai/internal/provider"
 	"go.muehmer.eu/lai/internal/provider/ollama"
+	"go.muehmer.eu/lai/internal/security"
 	"go.muehmer.eu/lai/internal/token"
 	"go.muehmer.eu/lai/internal/tool"
 )
@@ -170,6 +171,8 @@ func handleSlashCommand(input string, ctx *replContext) bool {
 	case "/model":
 		if arg == "" {
 			fmt.Fprintf(os.Stderr, "Current model: %s\n", ctx.config.Model)
+		} else if !security.ValidateModelName(arg) {
+			fmt.Fprintln(os.Stderr, "Error: invalid model name format.")
 		} else {
 			ctx.config.Model = arg
 			fmt.Fprintf(os.Stderr, "Switched to model: %s\n", arg)
