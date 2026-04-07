@@ -48,3 +48,7 @@ node_modules/
 .agents/
 package-lock.json
 package.json
+
+# Go
+lai
+/lai
