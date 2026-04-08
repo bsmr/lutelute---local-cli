@@ -77,12 +77,13 @@ internal/
 
 - [x] **Ollama error responses expose full body** — `ollama.go` now truncates error bodies
       to 500 chars.
-- [ ] **Env sanitization incomplete** — Missing: `HUGGINGFACE_TOKEN`, `DOCKER_CONFIG`,
-      `REGISTRY_AUTH_FILE`, generic `*_SECRET_*` / `*_TOKEN_*` patterns.
-- [ ] **Write tool: hardcoded 0644 permissions** — Sensitive files (`.env`, `*secret*`)
-      should use 0600.
+- [x] **Env sanitization incomplete** — Added `HUGGINGFACE_TOKEN`, `HF_TOKEN`, `DOCKER_CONFIG`,
+      `REGISTRY_AUTH_FILE`, `KAGGLE_KEY` + generic pattern matching for `*_SECRET_*`,
+      `*_TOKEN`, `*_API_KEY`, `*_PASSWORD`, `*_CREDENTIAL`.
+- [x] **Write tool: hardcoded 0644 permissions** — Sensitive filenames (`.env`, `credentials`,
+      `id_rsa`, `id_ed25519`, `.netrc`, `.pgpass`, `.my.cnf`) now use 0600.
 - [ ] **Agent JSON parse failures silent** — `agent.go` silently ignores malformed tool
-      arguments from the LLM. Log in debug mode.
+      arguments from the LLM. → Planned: will use `slog.Debug()` after logging is implemented.
 - [ ] **No per-chunk timeout on streaming** — Only total stream timeout (600s). A stalled
       stream holds resources indefinitely within that window.
 
@@ -90,8 +91,8 @@ internal/
 
 - [ ] **Binary detection: null-byte only** — Misses UTF-16, non-UTF-8 encodings. Consider
       `utf8.Valid()` as secondary check.
-- [ ] **No audit logging** — Tool executions, file operations, and model calls are not logged.
-- [ ] **No rate limiting on tool execution** — LLM can chain unlimited tool calls per turn.
+- [ ] **No audit logging** — Planned in `PLAN.md` Phase 1.5 (slog-based audit trail).
+- [ ] **No rate limiting on tool execution** — Planned in `PLAN.md` Phase 2 (RateLimiter).
 
 ## Conventions
 

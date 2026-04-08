@@ -2,6 +2,7 @@ package security
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -103,5 +104,40 @@ func TestSanitizedEnv(t *testing.T) {
 
 	if !slices.Contains(env, "SAFE_VAR=safe-value") {
 		t.Error("safe var should be preserved")
+	}
+}
+
+func TestSanitizedEnvBlocksNewEntries(t *testing.T) {
+	t.Setenv("HUGGINGFACE_TOKEN", "hf_secret")
+	t.Setenv("HF_TOKEN", "hf_secret2")
+	t.Setenv("DOCKER_CONFIG", "/some/path")
+
+	env := SanitizedEnv()
+	for _, e := range env {
+		if e == "HUGGINGFACE_TOKEN=hf_secret" ||
+			e == "HF_TOKEN=hf_secret2" ||
+			e == "DOCKER_CONFIG=/some/path" {
+			t.Errorf("new sensitive var not stripped: %s", e)
+		}
+	}
+}
+
+func TestSanitizedEnvBlocksPatterns(t *testing.T) {
+	t.Setenv("MY_CUSTOM_SECRET_KEY", "s3cret")
+	t.Setenv("ACME_API_KEY", "ak_123")
+	t.Setenv("DB_PASSWORD", "pw")
+	t.Setenv("SOME_TOKEN", "tok")
+	t.Setenv("PLAIN_VALUE", "ok")
+
+	env := SanitizedEnv()
+	for _, e := range env {
+		key, _, _ := strings.Cut(e, "=")
+		switch key {
+		case "MY_CUSTOM_SECRET_KEY", "ACME_API_KEY", "DB_PASSWORD", "SOME_TOKEN":
+			t.Errorf("pattern-matched var not stripped: %s", key)
+		}
+	}
+	if !slices.Contains(env, "PLAIN_VALUE=ok") {
+		t.Error("PLAIN_VALUE should be preserved")
 	}
 }

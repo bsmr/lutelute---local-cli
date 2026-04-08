@@ -60,7 +60,8 @@ func (t *WriteTool) Execute(args map[string]any) string {
 		return fmt.Sprintf("Error creating directories: %v", err)
 	}
 
-	if err := os.WriteFile(filePath, []byte(content), 0o644); err != nil {
+	mode := fileMode(filePath)
+	if err := os.WriteFile(filePath, []byte(content), mode); err != nil {
 		return fmt.Sprintf("Error writing file: %v", err)
 	}
 
@@ -69,6 +70,23 @@ func (t *WriteTool) Execute(args map[string]any) string {
 		lines++
 	}
 	return fmt.Sprintf("Successfully wrote %d bytes (%d lines) to %s", len(content), lines, filePath)
+}
+
+// sensitiveNames lists filename patterns that should be owner-only (0600).
+var sensitiveNames = []string{
+	".env", ".secret", "credentials", "id_rsa", "id_ed25519",
+	".netrc", ".pgpass", ".my.cnf",
+}
+
+// fileMode returns 0600 for sensitive filenames, 0644 otherwise.
+func fileMode(filePath string) os.FileMode {
+	base := strings.ToLower(filepath.Base(filePath))
+	for _, s := range sensitiveNames {
+		if base == s || strings.HasPrefix(base, s+".") || strings.HasSuffix(base, s) {
+			return 0o600
+		}
+	}
+	return 0o644
 }
 
 func isPathSafe(filePath string) bool {

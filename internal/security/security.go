@@ -31,6 +31,18 @@ var sanitizedEnvVars = []string{
 	"TWILIO_AUTH_TOKEN",
 	"SLACK_TOKEN", "SLACK_BOT_TOKEN",
 	"NPM_TOKEN", "PYPI_TOKEN",
+	"HUGGINGFACE_TOKEN", "HF_TOKEN",
+	"DOCKER_CONFIG", "REGISTRY_AUTH_FILE",
+	"KAGGLE_KEY",
+}
+
+// sensitiveKeyPatterns match environment variable names that likely contain secrets.
+var sensitiveKeyPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)_SECRET_`),
+	regexp.MustCompile(`(?i)_TOKEN$`),
+	regexp.MustCompile(`(?i)_API_KEY$`),
+	regexp.MustCompile(`(?i)_PASSWORD$`),
+	regexp.MustCompile(`(?i)_CREDENTIAL`),
 }
 
 var localhostHosts = map[string]struct{}{
@@ -60,7 +72,7 @@ func IsCommandDangerous(cmd string) bool {
 }
 
 // SanitizedEnv returns a copy of the current environment with sensitive
-// variables removed.
+// variables removed. Blocks both explicit names and pattern-matched keys.
 func SanitizedEnv() []string {
 	blocked := make(map[string]struct{}, len(sanitizedEnvVars))
 	for _, k := range sanitizedEnvVars {
@@ -71,11 +83,24 @@ func SanitizedEnv() []string {
 	result := make([]string, 0, len(env))
 	for _, e := range env {
 		key, _, _ := strings.Cut(e, "=")
-		if _, skip := blocked[key]; !skip {
-			result = append(result, e)
+		if _, skip := blocked[key]; skip {
+			continue
 		}
+		if isSensitiveKey(key) {
+			continue
+		}
+		result = append(result, e)
 	}
 	return result
+}
+
+func isSensitiveKey(key string) bool {
+	for _, pat := range sensitiveKeyPatterns {
+		if pat.MatchString(key) {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidateOllamaHost checks that a URL points to a localhost address.

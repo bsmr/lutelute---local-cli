@@ -56,6 +56,39 @@ func TestWriteTool(t *testing.T) {
 	}
 }
 
+func TestWriteToolSensitivePermissions(t *testing.T) {
+	dir := t.TempDir()
+
+	tests := []struct {
+		name     string
+		wantMode os.FileMode
+	}{
+		{".env", 0o600},
+		{".env.local", 0o600},
+		{"credentials", 0o600},
+		{"id_rsa", 0o600},
+		{"id_ed25519", 0o600},
+		{".netrc", 0o600},
+		{"normal.txt", 0o644},
+		{"main.go", 0o644},
+	}
+
+	wt := &WriteTool{}
+	for _, tt := range tests {
+		path := filepath.Join(dir, tt.name)
+		wt.Execute(map[string]any{"file_path": path, "content": "test\n"})
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Errorf("%s: %v", tt.name, err)
+			continue
+		}
+		got := info.Mode().Perm()
+		if got != tt.wantMode {
+			t.Errorf("%s: mode = %o, want %o", tt.name, got, tt.wantMode)
+		}
+	}
+}
+
 func TestEditTool(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "edit.txt")
