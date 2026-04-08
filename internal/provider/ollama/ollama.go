@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -239,6 +240,8 @@ func (c *Client) doJSON(method, path string, data any) (map[string]any, error) {
 		bodyReader = bytes.NewReader(b)
 	}
 
+	slog.Debug("ollama request", "method", method, "path", path)
+
 	req, err := http.NewRequest(method, c.baseURL+path, bodyReader)
 	if err != nil {
 		return nil, &provider.ConnectionError{Provider: "ollama", Cause: err}
@@ -259,6 +262,7 @@ func (c *Client) doJSON(method, path string, data any) (map[string]any, error) {
 	}
 
 	if resp.StatusCode >= 400 {
+		slog.Error("ollama request failed", "status", resp.StatusCode, "path", path)
 		return nil, &provider.RequestError{
 			Provider:   "ollama",
 			StatusCode: resp.StatusCode,

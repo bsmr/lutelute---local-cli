@@ -26,8 +26,12 @@ const (
 	DefaultMode           = "agent"
 	DefaultRAGTopK        = 5
 	DefaultRAGModel       = "all-minilm"
-	DefaultLlamaServerURL = "http://localhost:8090"
-	MaxConfigSize         = 10 * 1024 // 10 KB
+	DefaultLlamaServerURL       = "http://localhost:8090"
+	DefaultLogLevel             = "info"
+	DefaultMaxToolCallsPerTurn  = 50
+	DefaultMaxToolCallsTotal    = 500
+	DefaultMaxBashPerTurn       = 20
+	MaxConfigSize               = 10 * 1024 // 10 KB
 )
 
 // envVarMap maps environment variables to config field names.
@@ -44,6 +48,8 @@ var envVarMap = map[string]string{
 	"LOCAL_CLI_THINK_MODE":    "think_mode",
 	"LOCAL_CLI_KEEP_ALIVE":    "keep_alive",
 	"LLAMA_SERVER_URL":        "llama_server_url",
+	"LOCAL_CLI_LOG_LEVEL":     "log_level",
+	"LOCAL_CLI_LOG_FILE":      "log_file",
 }
 
 // Config holds all resolved configuration values.
@@ -71,8 +77,13 @@ type Config struct {
 	TopP           *float64
 	TopK           *int
 	ThinkMode      bool
-	KeepAlive      string
-	LlamaServerURL string
+	KeepAlive          string
+	LlamaServerURL     string
+	LogLevel           string
+	LogFile            string
+	MaxToolCallsPerTurn int
+	MaxToolCallsTotal   int
+	MaxBashPerTurn      int
 }
 
 // CLIArgs holds parsed command-line arguments. Nil pointer means "not set".
@@ -94,8 +105,13 @@ type CLIArgs struct {
 	TopK           *int
 	ThinkMode      *bool
 	KeepAlive      *string
-	LlamaServerURL *string
-	DefaultMode    *string
+	LlamaServerURL      *string
+	DefaultMode         *string
+	LogLevel            *string
+	LogFile             *string
+	MaxToolCallsPerTurn *int
+	MaxToolCallsTotal   *int
+	MaxBashPerTurn      *int
 }
 
 // New creates a Config with layered resolution: CLI > env > file > defaults.
@@ -147,8 +163,12 @@ func defaults() *Config {
 		PlanDir:        DefaultPlanDir,
 		KnowledgeDir:   DefaultKnowledgeDir,
 		SkillsDir:      DefaultSkillsDir,
-		DefaultMode:    DefaultMode,
-		LlamaServerURL: DefaultLlamaServerURL,
+		DefaultMode:         DefaultMode,
+		LlamaServerURL:      DefaultLlamaServerURL,
+		LogLevel:            DefaultLogLevel,
+		MaxToolCallsPerTurn: DefaultMaxToolCallsPerTurn,
+		MaxToolCallsTotal:   DefaultMaxToolCallsTotal,
+		MaxBashPerTurn:      DefaultMaxBashPerTurn,
 	}
 }
 
@@ -258,6 +278,27 @@ func applyFileValues(cfg *Config, vals map[string]string) {
 	if v, ok := vals["default_mode"]; ok {
 		cfg.DefaultMode = v
 	}
+	if v, ok := vals["log_level"]; ok {
+		cfg.LogLevel = v
+	}
+	if v, ok := vals["log_file"]; ok {
+		cfg.LogFile = v
+	}
+	if v, ok := vals["max_tool_calls_per_turn"]; ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.MaxToolCallsPerTurn = n
+		}
+	}
+	if v, ok := vals["max_tool_calls_total"]; ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.MaxToolCallsTotal = n
+		}
+	}
+	if v, ok := vals["max_bash_per_turn"]; ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.MaxBashPerTurn = n
+		}
+	}
 }
 
 func applyEnvValues(cfg *Config) {
@@ -299,6 +340,10 @@ func applyEnvValues(cfg *Config) {
 			cfg.KeepAlive = val
 		case "llama_server_url":
 			cfg.LlamaServerURL = val
+		case "log_level":
+			cfg.LogLevel = val
+		case "log_file":
+			cfg.LogFile = val
 		}
 	}
 }
@@ -360,6 +405,21 @@ func applyCLIArgs(cfg *Config, cli *CLIArgs) {
 	}
 	if cli.DefaultMode != nil {
 		cfg.DefaultMode = *cli.DefaultMode
+	}
+	if cli.LogLevel != nil {
+		cfg.LogLevel = *cli.LogLevel
+	}
+	if cli.LogFile != nil {
+		cfg.LogFile = *cli.LogFile
+	}
+	if cli.MaxToolCallsPerTurn != nil {
+		cfg.MaxToolCallsPerTurn = *cli.MaxToolCallsPerTurn
+	}
+	if cli.MaxToolCallsTotal != nil {
+		cfg.MaxToolCallsTotal = *cli.MaxToolCallsTotal
+	}
+	if cli.MaxBashPerTurn != nil {
+		cfg.MaxBashPerTurn = *cli.MaxBashPerTurn
 	}
 }
 

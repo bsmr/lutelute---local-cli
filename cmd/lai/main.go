@@ -4,10 +4,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"go.muehmer.eu/lai/internal/cli"
 	"go.muehmer.eu/lai/internal/config"
+	"go.muehmer.eu/lai/internal/logging"
 	"go.muehmer.eu/lai/internal/provider/ollama"
 	"go.muehmer.eu/lai/internal/tool"
 )
@@ -16,16 +18,26 @@ func main() {
 	cliArgs := parseFlags()
 	cfg := config.New(cliArgs)
 
-	if cfg.Debug {
-		fmt.Fprintf(os.Stderr, "[debug] Model: %s\n", cfg.Model)
-		fmt.Fprintf(os.Stderr, "[debug] Provider: %s\n", cfg.Provider)
-		fmt.Fprintf(os.Stderr, "[debug] Ollama host: %s\n", cfg.OllamaHost)
-		fmt.Fprintf(os.Stderr, "[debug] NumCtx: %d\n", cfg.NumCtx)
+	// Setup structured logging before anything else
+	if cfg.Debug && cfg.LogLevel == config.DefaultLogLevel {
+		cfg.LogLevel = "debug"
 	}
+	if err := logging.Setup(cfg.LogLevel, cfg.LogFile); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	slog.Debug("config loaded",
+		"model", cfg.Model,
+		"provider", cfg.Provider,
+		"ollama_host", cfg.OllamaHost,
+		"num_ctx", cfg.NumCtx,
+	)
 
 	// Create Ollama provider
 	prov, err := ollama.NewProvider(cfg.OllamaHost)
 	if err != nil {
+		slog.Error("provider init failed", "err", err)
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
@@ -49,6 +61,8 @@ func parseFlags() *config.CLIArgs {
 	topP := flag.Float64("top-p", -1, "Top-p sampling")
 	topK := flag.Int("top-k", -1, "Top-k sampling")
 	thinkMode := flag.Bool("think", false, "Enable extended thinking")
+	logLevel := flag.String("log-level", "", "Log level (debug, info, error)")
+	logFile := flag.String("log-file", "", "Path to JSON log file")
 
 	flag.Parse()
 
@@ -78,6 +92,12 @@ func parseFlags() *config.CLIArgs {
 	}
 	if *thinkMode {
 		args.ThinkMode = thinkMode
+	}
+	if *logLevel != "" {
+		args.LogLevel = logLevel
+	}
+	if *logFile != "" {
+		args.LogFile = logFile
 	}
 
 	return args

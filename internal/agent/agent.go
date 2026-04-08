@@ -4,8 +4,10 @@ package agent
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"go.muehmer.eu/lai/internal/provider"
 	"go.muehmer.eu/lai/internal/spinner"
@@ -31,7 +33,6 @@ func Loop(
 	messages *[]provider.Message,
 	tracker *token.Tracker,
 	opts *provider.ChatOptions,
-	debug bool,
 ) error {
 	toolMap := tool.ToolMap(tools)
 	toolDefs := tool.FormatTools(tools)
@@ -39,8 +40,10 @@ func Loop(
 	for {
 		// Compact messages if needed
 		if needsCompaction(*messages, opts) {
-			compactMessages(messages, debug)
+			compactMessages(messages)
 		}
+
+		slog.Debug("sending messages", "count", len(*messages), "model", model)
 
 		// Send to LLM with streaming
 		s := spinner.New("Thinking")
@@ -87,14 +90,23 @@ func Loop(
 				continue
 			}
 
-			if debug {
-				fmt.Fprintf(os.Stderr, "\n[tool] %s(%v)\n", funcName, args)
-			}
+			slog.Debug("tool call", "tool", funcName, "args", args)
 
 			ts := spinner.New(fmt.Sprintf("Running %s", funcName))
 			ts.Start()
+			start := time.Now()
 			result := t.Execute(args)
+			elapsed := time.Since(start)
 			ts.Stop()
+
+			slog.Info("audit",
+				slog.Group("event",
+					slog.String("type", "tool_exec"),
+					slog.String("tool", funcName),
+					slog.Int("result_bytes", len(result)),
+					slog.Duration("duration", elapsed),
+				),
+			)
 
 			// Display truncated result
 			display := result
@@ -212,7 +224,7 @@ func needsCompaction(messages []provider.Message, opts *provider.ChatOptions) bo
 	return EstimateTokens(messages) > threshold
 }
 
-func compactMessages(messages *[]provider.Message, debug bool) {
+func compactMessages(messages *[]provider.Message) {
 	msgs := *messages
 
 	// Find system messages at start
@@ -231,10 +243,11 @@ func compactMessages(messages *[]provider.Message, debug bool) {
 		return
 	}
 
-	if debug {
-		fmt.Fprintf(os.Stderr, "[compact] Compacting messages %d..%d (keeping %d recent)\n",
-			systemEnd, compactEnd, compactKeepRecent)
-	}
+	slog.Debug("compacting messages",
+		"range_start", systemEnd,
+		"range_end", compactEnd,
+		"keep_recent", compactKeepRecent,
+	)
 
 	for i := systemEnd; i < compactEnd; i++ {
 		msgs[i] = compactMessage(msgs[i])

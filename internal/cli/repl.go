@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"log/slog"
+
 	"go.muehmer.eu/lai/internal/agent"
 	"go.muehmer.eu/lai/internal/config"
 	"go.muehmer.eu/lai/internal/health"
@@ -93,6 +95,14 @@ func Run(cfg *config.Config, prov provider.Provider, client *ollama.Client, tool
 		{Role: "system", Content: systemPrompt},
 	}
 
+	slog.Info("audit",
+		slog.Group("event",
+			slog.String("type", "session_start"),
+			slog.String("model", cfg.Model),
+			slog.String("provider", cfg.Provider),
+		),
+	)
+
 	// REPL loop
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
@@ -139,7 +149,7 @@ func Run(cfg *config.Config, prov provider.Provider, client *ollama.Client, tool
 		}
 
 		// Run agent loop
-		if err := agent.Loop(prov, cfg.Model, tools, &ctx.msgs, ctx.tracker, opts, cfg.Debug); err != nil {
+		if err := agent.Loop(prov, cfg.Model, tools, &ctx.msgs, ctx.tracker, opts); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
 	}
@@ -174,8 +184,16 @@ func handleSlashCommand(input string, ctx *replContext) bool {
 		} else if !security.ValidateModelName(arg) {
 			fmt.Fprintln(os.Stderr, "Error: invalid model name format.")
 		} else {
+			old := ctx.config.Model
 			ctx.config.Model = arg
 			fmt.Fprintf(os.Stderr, "Switched to model: %s\n", arg)
+			slog.Info("audit",
+				slog.Group("event",
+					slog.String("type", "model_switch"),
+					slog.String("from", old),
+					slog.String("to", arg),
+				),
+			)
 		}
 
 	case "/status":

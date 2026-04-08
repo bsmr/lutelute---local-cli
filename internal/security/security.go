@@ -2,6 +2,7 @@
 package security
 
 import (
+	"log/slog"
 	"net/url"
 	"os"
 	"regexp"
@@ -65,6 +66,16 @@ func IsCommandDangerous(cmd string) bool {
 	normalized := whitespaceRE.ReplaceAllString(strings.TrimSpace(cmd), " ")
 	for _, pat := range dangerousPatterns {
 		if pat.MatchString(cmd) || pat.MatchString(normalized) {
+			prefix := cmd
+			if len(prefix) > 80 {
+				prefix = prefix[:80]
+			}
+			slog.Info("audit",
+				slog.Group("event",
+					slog.String("type", "command_blocked"),
+					slog.String("command_prefix", prefix),
+				),
+			)
 			return true
 		}
 	}
