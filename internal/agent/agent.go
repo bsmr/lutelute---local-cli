@@ -33,9 +33,14 @@ func Loop(
 	messages *[]provider.Message,
 	tracker *token.Tracker,
 	opts *provider.ChatOptions,
+	limiter *RateLimiter,
 ) error {
 	toolMap := tool.ToolMap(tools)
 	toolDefs := tool.FormatTools(tools)
+
+	if limiter != nil {
+		limiter.ResetTurn()
+	}
 
 	for {
 		// Compact messages if needed
@@ -80,6 +85,18 @@ func Loop(
 				}
 			}
 
+			// Rate limit check
+			if limiter != nil {
+				if err := limiter.Check(funcName); err != nil {
+					slog.Error("rate limit hit", "tool", funcName, "err", err)
+					*messages = append(*messages, provider.Message{
+						Role:    "tool",
+						Content: fmt.Sprintf("Error: %v", err),
+					})
+					return nil
+				}
+			}
+
 			t, exists := toolMap[funcName]
 			if !exists {
 				result := fmt.Sprintf("Error: unknown tool '%s'", funcName)
@@ -98,6 +115,10 @@ func Loop(
 			result := t.Execute(args)
 			elapsed := time.Since(start)
 			ts.Stop()
+
+			if limiter != nil {
+				limiter.Record(funcName)
+			}
 
 			slog.Info("audit",
 				slog.Group("event",

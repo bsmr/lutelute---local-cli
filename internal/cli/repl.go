@@ -42,6 +42,7 @@ type replContext struct {
 	tools   []tool.Tool
 	msgs    []provider.Message
 	tracker *token.Tracker
+	limiter *agent.RateLimiter
 }
 
 // BuildSystemPrompt generates the system prompt with tool descriptions.
@@ -77,6 +78,11 @@ func Run(cfg *config.Config, prov provider.Provider, client *ollama.Client, tool
 		client:  client,
 		tools:   tools,
 		tracker: token.NewTracker(),
+		limiter: agent.NewRateLimiter(
+			cfg.MaxToolCallsPerTurn,
+			cfg.MaxToolCallsTotal,
+			cfg.MaxBashPerTurn,
+		),
 	}
 
 	// Print welcome banner
@@ -149,7 +155,7 @@ func Run(cfg *config.Config, prov provider.Provider, client *ollama.Client, tool
 		}
 
 		// Run agent loop
-		if err := agent.Loop(prov, cfg.Model, tools, &ctx.msgs, ctx.tracker, opts); err != nil {
+		if err := agent.Loop(prov, cfg.Model, tools, &ctx.msgs, ctx.tracker, opts, ctx.limiter); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
 	}
@@ -176,6 +182,7 @@ func handleSlashCommand(input string, ctx *replContext) bool {
 			{Role: "system", Content: systemPrompt},
 		}
 		ctx.tracker.Clear()
+		ctx.limiter.ResetAll()
 		fmt.Fprintln(os.Stderr, "Conversation cleared.")
 
 	case "/model":
@@ -201,6 +208,9 @@ func handleSlashCommand(input string, ctx *replContext) bool {
 		fmt.Fprintf(os.Stderr, "Provider: %s\n", ctx.prov.Name())
 		fmt.Fprintf(os.Stderr, "Messages: %d\n", len(ctx.msgs))
 		fmt.Fprintf(os.Stderr, "Tokens: ~%d\n", agent.EstimateTokens(ctx.msgs))
+		turn, total := ctx.limiter.Stats()
+		fmt.Fprintf(os.Stderr, "Tool calls: %d this turn, %d total (limits: %d/%d)\n",
+			turn, total, ctx.config.MaxToolCallsPerTurn, ctx.config.MaxToolCallsTotal)
 
 	case "/models":
 		models, err := ctx.prov.ListModels()

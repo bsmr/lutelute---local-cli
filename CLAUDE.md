@@ -91,8 +91,10 @@ internal/
 
 - [ ] **Binary detection: null-byte only** — Misses UTF-16, non-UTF-8 encodings. Consider
       `utf8.Valid()` as secondary check.
-- [ ] **No audit logging** — Planned in `PLAN.md` Phase 1.5 (slog-based audit trail).
-- [ ] **No rate limiting on tool execution** — Planned in `PLAN.md` Phase 2 (RateLimiter).
+- [x] **No audit logging** — Implemented via `log/slog` with audit events (tool_exec,
+      model_switch, command_blocked, session_start). JSON file output via `--log-file`.
+- [x] **No rate limiting on tool execution** — `RateLimiter` in `agent/ratelimit.go`:
+      50 calls/turn, 500 total, 20 bash/turn. Configurable. Reset via `/clear`.
 
 ## Conventions
 
