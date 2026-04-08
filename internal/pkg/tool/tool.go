@@ -1,7 +1,7 @@
 // Package tool defines the tool interface and tool execution utilities.
 package tool
 
-import "go.muehmer.eu/lai/internal/provider"
+import "go.muehmer.eu/lai/internal/pkg/provider"
 
 // Tool is the interface that all agent tools must implement.
 type Tool interface {

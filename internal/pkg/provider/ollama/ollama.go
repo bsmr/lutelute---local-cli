@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"time"
 
-	"go.muehmer.eu/lai/internal/provider"
-	"go.muehmer.eu/lai/internal/security"
+	"go.muehmer.eu/lai/internal/pkg/provider"
+	"go.muehmer.eu/lai/internal/pkg/security"
 )
 
 const (

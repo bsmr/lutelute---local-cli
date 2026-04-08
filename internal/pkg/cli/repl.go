@@ -3,20 +3,20 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
-	"log/slog"
-
-	"go.muehmer.eu/lai/internal/agent"
-	"go.muehmer.eu/lai/internal/config"
-	"go.muehmer.eu/lai/internal/health"
-	"go.muehmer.eu/lai/internal/provider"
-	"go.muehmer.eu/lai/internal/provider/ollama"
-	"go.muehmer.eu/lai/internal/security"
-	"go.muehmer.eu/lai/internal/token"
-	"go.muehmer.eu/lai/internal/tool"
+	"go.muehmer.eu/lai/internal/pkg/agent"
+	"go.muehmer.eu/lai/internal/pkg/config"
+	"go.muehmer.eu/lai/internal/pkg/health"
+	"go.muehmer.eu/lai/internal/pkg/provider"
+	"go.muehmer.eu/lai/internal/pkg/provider/ollama"
+	"go.muehmer.eu/lai/internal/pkg/security"
+	"go.muehmer.eu/lai/internal/pkg/token"
+	"go.muehmer.eu/lai/internal/pkg/tool"
 )
 
 const version = "0.1.0-go"
@@ -70,8 +70,8 @@ func BuildSystemPrompt(tools []tool.Tool) string {
 	return sb.String()
 }
 
-// Run starts the interactive REPL.
-func Run(cfg *config.Config, prov provider.Provider, client *ollama.Client, tools []tool.Tool) {
+// Run starts the interactive REPL. The context is used for signal-based shutdown.
+func Run(_ context.Context, cfg *config.Config, prov provider.Provider, client *ollama.Client, tools []tool.Tool) {
 	ctx := &replContext{
 		config:  cfg,
 		prov:    prov,

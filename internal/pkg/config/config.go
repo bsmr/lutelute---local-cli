@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"go.muehmer.eu/lai/internal/security"
+	"go.muehmer.eu/lai/internal/pkg/security"
 )
 
 // Defaults for all configuration keys.

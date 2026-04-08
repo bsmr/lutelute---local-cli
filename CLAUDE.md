@@ -28,23 +28,28 @@ python -m local_cli               # Run Python version
 ## Architecture (Go)
 
 ```
-cmd/lai/main.go                   # Entry point, flag parsing
-internal/
-  config/config.go                # Layered config: CLI > env > file > defaults
+cmd/lai/main.go                       # Entry point: main() → run() pattern
+internal/pkg/
+  config/config.go                    # Layered config: CLI > env > file > defaults
   provider/
-    provider.go                   # Provider interface, message types, error types
-    ollama/ollama.go              # Ollama HTTP client + Provider implementation
+    provider.go                       # Provider interface, message types, error types
+    ollama/ollama.go                  # Ollama HTTP client + Provider implementation
   tool/
-    tool.go                       # Tool interface, FormatTools(), ToolMap()
-    tools.go                      # DefaultTools(), SubAgentTools()
-    bash.go, read.go, write.go    # Tool implementations
+    tool.go                           # Tool interface, FormatTools(), ToolMap()
+    tools.go                          # DefaultTools(), SubAgentTools()
+    util.go                           # Shared helpers: IsBinaryFile(), ToInt()
+    bash.go, read.go, write.go        # Tool implementations
     edit.go, glob.go, grep.go
-  agent/agent.go                  # Agent loop: stream → collect → execute tools → repeat
-  cli/repl.go                     # Interactive REPL, slash commands, system prompt
-  security/security.go            # Command validation, env sanitization, host validation
-  spinner/spinner.go              # Braille-dot spinner (goroutine + channel)
-  token/tracker.go                # Token usage accounting and cost estimation
-  health/health.go                # Startup diagnostics (Ollama, model, disk)
+  agent/
+    agent.go                          # Agent loop: stream → collect → execute tools → repeat
+    ratelimit.go                      # Per-turn and per-session tool call rate limiting
+  cli/repl.go                         # Interactive REPL, slash commands, system prompt
+  security/security.go                # Command validation, env sanitization, host validation
+  logging/logging.go                  # Structured logging (log/slog) with multi-handler
+  spinner/spinner.go                  # Braille-dot spinner (goroutine + channel)
+  token/tracker.go                    # Token usage accounting and cost estimation
+  health/health.go                    # Startup diagnostics (Ollama, model, disk)
+bin/                                  # Build output (gitignored)
 ```
 
 ### Key Design Decisions

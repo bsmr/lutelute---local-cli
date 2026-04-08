@@ -2,29 +2,40 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"go.muehmer.eu/lai/internal/cli"
-	"go.muehmer.eu/lai/internal/config"
-	"go.muehmer.eu/lai/internal/logging"
-	"go.muehmer.eu/lai/internal/provider/ollama"
-	"go.muehmer.eu/lai/internal/tool"
+	"go.muehmer.eu/lai/internal/pkg/cli"
+	"go.muehmer.eu/lai/internal/pkg/config"
+	"go.muehmer.eu/lai/internal/pkg/logging"
+	"go.muehmer.eu/lai/internal/pkg/provider/ollama"
+	"go.muehmer.eu/lai/internal/pkg/tool"
 )
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	cliArgs := parseFlags()
 	cfg := config.New(cliArgs)
 
-	// Setup structured logging before anything else
 	if cfg.Debug && cfg.LogLevel == config.DefaultLogLevel {
 		cfg.LogLevel = "debug"
 	}
 	if err := logging.Setup(cfg.LogLevel, cfg.LogFile); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("logging setup: %w", err)
 	}
 
 	slog.Debug("config loaded",
@@ -34,19 +45,14 @@ func main() {
 		"num_ctx", cfg.NumCtx,
 	)
 
-	// Create Ollama provider
 	prov, err := ollama.NewProvider(cfg.OllamaHost)
 	if err != nil {
-		slog.Error("provider init failed", "err", err)
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("provider init: %w", err)
 	}
 
-	// Build tool set
 	tools := tool.DefaultTools()
-
-	// Run REPL
-	cli.Run(cfg, prov, prov.OllamaClient(), tools)
+	cli.Run(ctx, cfg, prov, prov.OllamaClient(), tools)
+	return nil
 }
 
 func parseFlags() *config.CLIArgs {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"go.muehmer.eu/lai/internal/security"
+	"go.muehmer.eu/lai/internal/pkg/security"
 )
 
 const (

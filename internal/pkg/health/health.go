@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"go.muehmer.eu/lai/internal/provider/ollama"
+	"go.muehmer.eu/lai/internal/pkg/provider/ollama"
 
 	"os"
 )

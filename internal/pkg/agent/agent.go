@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"go.muehmer.eu/lai/internal/provider"
-	"go.muehmer.eu/lai/internal/spinner"
-	"go.muehmer.eu/lai/internal/token"
-	"go.muehmer.eu/lai/internal/tool"
+	"go.muehmer.eu/lai/internal/pkg/provider"
+	"go.muehmer.eu/lai/internal/pkg/spinner"
+	"go.muehmer.eu/lai/internal/pkg/token"
+	"go.muehmer.eu/lai/internal/pkg/tool"
 )
 
 const (
