@@ -90,7 +90,7 @@ func Loop(
 				if err := limiter.Check(funcName); err != nil {
 					slog.Error("rate limit hit", "tool", funcName, "err", err)
 					*messages = append(*messages, provider.Message{
-						Role:    "tool",
+						Role:    provider.RoleTool,
 						Content: fmt.Sprintf("Error: %v", err),
 					})
 					return nil
@@ -101,7 +101,7 @@ func Loop(
 			if !exists {
 				result := fmt.Sprintf("Error: unknown tool '%s'", funcName)
 				*messages = append(*messages, provider.Message{
-					Role:    "tool",
+					Role:    provider.RoleTool,
 					Content: result,
 				})
 				continue
@@ -137,7 +137,7 @@ func Loop(
 			fmt.Fprintf(os.Stderr, "  → %s: %s\n", funcName, display)
 
 			*messages = append(*messages, provider.Message{
-				Role:    "tool",
+				Role:    provider.RoleTool,
 				Content: result,
 			})
 		}
@@ -214,7 +214,7 @@ func collectStreamingResponse(
 	// Build final response
 	result := lastChunk
 	result.Message = &provider.Message{
-		Role:      "assistant",
+		Role:      provider.RoleAssistant,
 		Content:   strings.Join(contentParts, ""),
 		ToolCalls: toolCalls,
 	}
@@ -250,7 +250,7 @@ func compactMessages(messages *[]provider.Message) {
 
 	// Find system messages at start
 	systemEnd := 0
-	for systemEnd < len(msgs) && msgs[systemEnd].Role == "system" {
+	for systemEnd < len(msgs) && msgs[systemEnd].Role == provider.RoleSystem {
 		systemEnd++
 	}
 
@@ -277,13 +277,13 @@ func compactMessages(messages *[]provider.Message) {
 
 func compactMessage(msg provider.Message) provider.Message {
 	switch msg.Role {
-	case "system":
+	case provider.RoleSystem:
 		return msg
-	case "tool":
+	case provider.RoleTool:
 		if len(msg.Content) > compactToolResultMax {
 			msg.Content = msg.Content[:compactToolResultMax] + "... [truncated for context]"
 		}
-	case "assistant":
+	case provider.RoleAssistant:
 		if len(msg.Content) > compactAssistantMax {
 			msg.Content = msg.Content[:compactAssistantMax] + "... [truncated for context]"
 		}

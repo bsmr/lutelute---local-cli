@@ -50,10 +50,7 @@ func (t *BashTool) Execute(args map[string]any) string {
 
 	timeout := defaultTimeout
 	if v, ok := args["timeout"]; ok {
-		switch n := v.(type) {
-		case float64:
-			timeout = int(n)
-		case int:
+		if n, ok := ToInt(v); ok {
 			timeout = n
 		}
 	}

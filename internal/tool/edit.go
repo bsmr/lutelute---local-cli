@@ -57,6 +57,12 @@ func (t *EditTool) Execute(args map[string]any) string {
 		return fmt.Sprintf("Error: edit to %s blocked by security policy.", filePath)
 	}
 
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return fmt.Sprintf("Error: %v", err)
+	}
+	originalMode := info.Mode().Perm()
+
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Sprintf("Error: %v", err)
@@ -78,7 +84,7 @@ func (t *EditTool) Execute(args map[string]any) string {
 		occurrences = 1
 	}
 
-	if err := os.WriteFile(filePath, []byte(replaced), 0o644); err != nil {
+	if err := os.WriteFile(filePath, []byte(replaced), originalMode); err != nil {
 		return fmt.Sprintf("Error writing file: %v", err)
 	}
 

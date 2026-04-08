@@ -2,9 +2,7 @@ package tool
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 )
@@ -48,13 +46,13 @@ func (t *ReadTool) Execute(args map[string]any) string {
 
 	offset := 1
 	if v, ok := args["offset"]; ok {
-		if n, ok := toInt(v); ok && n >= 1 {
+		if n, ok := ToInt(v); ok && n >= 1 {
 			offset = n
 		}
 	}
 	limit := 0 // 0 means no limit
 	if v, ok := args["limit"]; ok {
-		if n, ok := toInt(v); ok && n >= 1 {
+		if n, ok := ToInt(v); ok && n >= 1 {
 			limit = n
 		}
 	}
@@ -73,15 +71,12 @@ func (t *ReadTool) Execute(args map[string]any) string {
 	}
 	defer f.Close()
 
-	// Binary detection: read first 8192 bytes and check for null byte
-	header := make([]byte, 8192)
-	n, _ := f.Read(header)
-	if bytes.ContainsRune(header[:n], 0) {
-		return fmt.Sprintf("Error: binary file detected: %s", filePath)
-	}
-	// Seek back to start
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
+	binary, err := IsBinaryFile(f)
+	if err != nil {
 		return fmt.Sprintf("Error: %v", err)
+	}
+	if binary {
+		return fmt.Sprintf("Error: binary file detected: %s", filePath)
 	}
 
 	scanner := bufio.NewScanner(f)
@@ -119,15 +114,3 @@ func (t *ReadTool) Execute(args map[string]any) string {
 	return sb.String()
 }
 
-func toInt(v any) (int, bool) {
-	switch n := v.(type) {
-	case float64:
-		return int(n), true
-	case int:
-		return n, true
-	case int64:
-		return int(n), true
-	default:
-		return 0, false
-	}
-}

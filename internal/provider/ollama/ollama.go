@@ -16,14 +16,30 @@ import (
 )
 
 const (
+	providerName   = "ollama"
 	defaultTimeout = 30 * time.Second
 	streamTimeout  = 600 * time.Second
 )
 
+// rawStreamChunk captures all fields from a streaming chunk in a single unmarshal.
+type rawStreamChunk struct {
+	Message *struct {
+		Role      string              `json:"role"`
+		Content   string              `json:"content"`
+		ToolCalls []provider.ToolCall `json:"tool_calls,omitempty"`
+		Thinking  string              `json:"thinking,omitempty"`
+	} `json:"message,omitempty"`
+	Done            bool   `json:"done"`
+	Error           string `json:"error,omitempty"`
+	PromptEvalCount int    `json:"prompt_eval_count,omitempty"`
+	EvalCount       int    `json:"eval_count,omitempty"`
+}
+
 // Client is an HTTP client for the Ollama REST API.
 type Client struct {
-	baseURL    string
-	httpClient *http.Client
+	baseURL      string
+	httpClient   *http.Client
+	streamClient *http.Client
 }
 
 // NewClient creates a new Ollama HTTP client.
@@ -32,8 +48,9 @@ func NewClient(baseURL string) (*Client, error) {
 		return nil, fmt.Errorf("ollama host must be localhost: %s", baseURL)
 	}
 	return &Client{
-		baseURL:    baseURL,
-		httpClient: &http.Client{Timeout: defaultTimeout},
+		baseURL:      baseURL,
+		httpClient:   &http.Client{Timeout: defaultTimeout},
+		streamClient: &http.Client{Timeout: streamTimeout},
 	}, nil
 }
 
@@ -126,7 +143,7 @@ func (c *Client) ChatStream(model string, messages []provider.Message, tools []p
 		body := buildChatBody(model, messages, tools, opts, true)
 		resp, err := c.doStreamRequest("/api/chat", body)
 		if err != nil {
-			errCh <- &provider.ConnectionError{Provider: "ollama", Cause: err}
+			errCh <- &provider.ConnectionError{Provider: providerName, Cause: err}
 			return
 		}
 		defer resp.Body.Close()
@@ -139,30 +156,34 @@ func (c *Client) ChatStream(model string, messages []provider.Message, tools []p
 				continue
 			}
 
-			var chunk provider.ChatChunk
-			if err := json.Unmarshal(line, &chunk); err != nil {
+			var raw rawStreamChunk
+			if err := json.Unmarshal(line, &raw); err != nil {
 				continue // skip malformed JSON
 			}
 
-			// Check for error field in the raw JSON
-			var raw map[string]any
-			if json.Unmarshal(line, &raw) == nil {
-				if errMsg, ok := raw["error"].(string); ok {
-					errCh <- &provider.StreamError{Provider: "ollama", Cause: fmt.Errorf("%s", errMsg)}
-					return
+			if raw.Error != "" {
+				errCh <- &provider.StreamError{Provider: providerName, Cause: fmt.Errorf("%s", raw.Error)}
+				return
+			}
+
+			chunk := provider.ChatChunk{
+				Done:            raw.Done,
+				PromptEvalCount: raw.PromptEvalCount,
+				EvalCount:       raw.EvalCount,
+			}
+			if raw.Message != nil {
+				chunk.Message = &provider.Message{
+					Role:      raw.Message.Role,
+					Content:   raw.Message.Content,
+					ToolCalls: raw.Message.ToolCalls,
 				}
-				// Extract thinking field if present
-				if msg, ok := raw["message"].(map[string]any); ok {
-					if thinking, ok := msg["thinking"].(string); ok {
-						chunk.Thinking = thinking
-					}
-				}
+				chunk.Thinking = raw.Message.Thinking
 			}
 
 			chunks <- chunk
 		}
 		if err := scanner.Err(); err != nil {
-			errCh <- &provider.StreamError{Provider: "ollama", Cause: err}
+			errCh <- &provider.StreamError{Provider: providerName, Cause: err}
 		}
 	}()
 
@@ -198,9 +219,7 @@ func buildChatBody(model string, messages []provider.Message, tools []provider.T
 		body["tools"] = tools
 	}
 
-	options := map[string]any{
-		"num_ctx": 8192,
-	}
+	options := make(map[string]any)
 	if opts != nil {
 		if opts.NumCtx > 0 {
 			options["num_ctx"] = opts.NumCtx
@@ -244,7 +263,7 @@ func (c *Client) doJSON(method, path string, data any) (map[string]any, error) {
 
 	req, err := http.NewRequest(method, c.baseURL+path, bodyReader)
 	if err != nil {
-		return nil, &provider.ConnectionError{Provider: "ollama", Cause: err}
+		return nil, &provider.ConnectionError{Provider: providerName, Cause: err}
 	}
 	if data != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -252,13 +271,13 @@ func (c *Client) doJSON(method, path string, data any) (map[string]any, error) {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, &provider.ConnectionError{Provider: "ollama", Cause: err}
+		return nil, &provider.ConnectionError{Provider: providerName, Cause: err}
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, &provider.ConnectionError{Provider: "ollama", Cause: err}
+		return nil, &provider.ConnectionError{Provider: providerName, Cause: err}
 	}
 
 	if resp.StatusCode >= 400 {
@@ -291,7 +310,7 @@ func (c *Client) doNoContent(method, path string, data any) error {
 
 	req, err := http.NewRequest(method, c.baseURL+path, bodyReader)
 	if err != nil {
-		return &provider.ConnectionError{Provider: "ollama", Cause: err}
+		return &provider.ConnectionError{Provider: providerName, Cause: err}
 	}
 	if data != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -299,7 +318,7 @@ func (c *Client) doNoContent(method, path string, data any) error {
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return &provider.ConnectionError{Provider: "ollama", Cause: err}
+		return &provider.ConnectionError{Provider: providerName, Cause: err}
 	}
 	defer resp.Body.Close()
 
@@ -326,8 +345,7 @@ func (c *Client) doStreamRequest(path string, data any) (*http.Response, error) 
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: streamTimeout}
-	resp, err := client.Do(req)
+	resp, err := c.streamClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

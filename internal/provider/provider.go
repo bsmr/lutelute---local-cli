@@ -6,6 +6,14 @@ import (
 	"fmt"
 )
 
+// Message role constants.
+const (
+	RoleSystem    = "system"
+	RoleUser      = "user"
+	RoleAssistant = "assistant"
+	RoleTool      = "tool"
+)
+
 // Message represents a chat message in the normalized format.
 type Message struct {
 	Role      string     `json:"role"`

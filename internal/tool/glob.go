@@ -58,15 +58,16 @@ func (t *GlobTool) Execute(args map[string]any) string {
 		return fmt.Sprintf("Error: not a directory: %s", base)
 	}
 
-	fullPattern := filepath.Join(base, pattern)
-	matches, err := filepath.Glob(fullPattern)
-	if err != nil {
-		return fmt.Sprintf("Error: invalid glob pattern: %v", err)
-	}
-
-	// Also try doublestar-like matching for ** patterns
+	var matches []string
 	if strings.Contains(pattern, "**") {
 		matches = walkGlob(base, pattern)
+	} else {
+		fullPattern := filepath.Join(base, pattern)
+		var err error
+		matches, err = filepath.Glob(fullPattern)
+		if err != nil {
+			return fmt.Sprintf("Error: invalid glob pattern: %v", err)
+		}
 	}
 
 	if len(matches) == 0 {

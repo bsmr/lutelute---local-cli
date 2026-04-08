@@ -98,7 +98,7 @@ func Run(cfg *config.Config, prov provider.Provider, client *ollama.Client, tool
 	// Initialize conversation with system prompt
 	systemPrompt := BuildSystemPrompt(tools)
 	ctx.msgs = []provider.Message{
-		{Role: "system", Content: systemPrompt},
+		{Role: provider.RoleSystem, Content: systemPrompt},
 	}
 
 	slog.Info("audit",
@@ -132,7 +132,7 @@ func Run(cfg *config.Config, prov provider.Provider, client *ollama.Client, tool
 
 		// Build user message
 		ctx.msgs = append(ctx.msgs, provider.Message{
-			Role:    "user",
+			Role:    provider.RoleUser,
 			Content: input,
 		})
 
@@ -179,7 +179,7 @@ func handleSlashCommand(input string, ctx *replContext) bool {
 	case "/clear":
 		systemPrompt := BuildSystemPrompt(ctx.tools)
 		ctx.msgs = []provider.Message{
-			{Role: "system", Content: systemPrompt},
+			{Role: provider.RoleSystem, Content: systemPrompt},
 		}
 		ctx.tracker.Clear()
 		ctx.limiter.ResetAll()

@@ -2,7 +2,6 @@ package tool
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -153,13 +152,8 @@ func searchFile(filePath string, re *regexp.Regexp) []string {
 	}
 	defer f.Close()
 
-	// Binary detection
-	header := make([]byte, 8192)
-	n, _ := f.Read(header)
-	if bytes.ContainsRune(header[:n], 0) {
-		return nil
-	}
-	if _, err := f.Seek(0, 0); err != nil {
+	binary, err := IsBinaryFile(f)
+	if err != nil || binary {
 		return nil
 	}
 
